@@ -11,12 +11,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=20260425a">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260425a">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=20260425a">
-<link rel="manifest" href="manifest.webmanifest?v=20260425a">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=20260425b">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260425b">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=20260425b">
+<link rel="manifest" href="manifest.webmanifest?v=20260425b">
 <title>家庭在庫管理</title>
-<link rel="stylesheet" href="src/style.css?v=20260425a">
+<link rel="stylesheet" href="src/style.css?v=20260425b">
 </head>
 <body>
 <div class="app">
@@ -45,13 +45,11 @@
     </div>
   </div>
 
-  <div class="main-segment-tabs" id="main-segment-tabs">
-    <button class="main-segment-btn active" data-loc="fridge" onclick="showLoc('fridge')"><span class="seg-icon">🥬</span>冷蔵庫</button>
-    <button class="main-segment-btn" data-loc="pantry" onclick="showLoc('pantry')"><span class="seg-icon">🥫</span>パントリー</button>
-    <button class="main-segment-btn" data-loc="freezer" onclick="showLoc('freezer')"><span class="seg-icon">🧊</span>冷凍ストッカー</button>
-    <button class="main-segment-btn" data-loc="storage" onclick="showLoc('storage')"><span class="seg-icon">📦</span>倉庫</button>
-    <button class="main-segment-btn" data-loc="storage-fridge" onclick="showLoc('storage-fridge')"><span class="seg-icon">🏠</span>倉庫冷蔵庫</button>
+  <div class="main-segment-tabs">
+    <button class="main-segment-btn active" data-group="house" onclick="showGroup('house')"><span class="seg-icon">🏠</span>家</button>
+    <button class="main-segment-btn" data-group="warehouse" onclick="showGroup('warehouse')"><span class="seg-icon">📦</span>倉庫</button>
   </div>
+  <div class="sub-segment-tabs" id="sub-segment-tabs"></div>
 
   <div class="view-wrap">
     <div id="view-loc">
@@ -140,11 +138,15 @@
     <div class="form-row">
       <div class="form-label">保管場所 *</div>
       <select class="form-select" id="f-location">
-        <option value="fridge">🥬 冷蔵庫</option>
-        <option value="pantry">🥫 パントリー</option>
-        <option value="freezer">🧊 冷凍ストッカー</option>
-        <option value="storage">📦 倉庫</option>
-        <option value="storage-fridge">🏠 倉庫冷蔵庫</option>
+        <optgroup label="🏠 家">
+          <option value="fridge">🥬 冷蔵庫</option>
+          <option value="pantry">🥫 パントリー</option>
+          <option value="freezer">🧊 冷凍ストッカー</option>
+        </optgroup>
+        <optgroup label="📦 倉庫">
+          <option value="storage">📦 倉庫</option>
+          <option value="storage-fridge">❄️ 倉庫冷蔵庫</option>
+        </optgroup>
       </select>
     </div>
 
@@ -241,6 +243,6 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script src="src/main.js?v=20260425a"></script>
+<script src="src/main.js?v=20260425b"></script>
 </body>
 </html>

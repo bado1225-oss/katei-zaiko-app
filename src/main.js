@@ -4,16 +4,22 @@ const LOG_KEY = 'katei-zaiko-logs-v1';
 const STATE_KEY = 'katei-zaiko-state-v1';
 
 const LOCATIONS = {
-  'fridge':         { label: '冷蔵庫',     icon: '🥬' },
-  'pantry':         { label: 'パントリー', icon: '🥫' },
-  'freezer':        { label: '冷凍ストッカー', icon: '🧊' },
-  'storage':        { label: '倉庫',       icon: '📦' },
-  'storage-fridge': { label: '倉庫冷蔵庫', icon: '🏠' },
+  'fridge':         { label: '冷蔵庫',         icon: '🥬', group: 'house' },
+  'pantry':         { label: 'パントリー',     icon: '🥫', group: 'house' },
+  'freezer':        { label: '冷凍ストッカー', icon: '🧊', group: 'house' },
+  'storage':        { label: '倉庫',           icon: '📦', group: 'warehouse' },
+  'storage-fridge': { label: '倉庫冷蔵庫',     icon: '❄️', group: 'warehouse' },
+};
+
+const GROUPS = {
+  'house':     { label: '家',   icon: '🏠', locs: ['fridge','pantry','freezer'] },
+  'warehouse': { label: '倉庫', icon: '📦', locs: ['storage','storage-fridge'] },
 };
 
 const STATE = {
   items: [],
   logs: [],
+  currentGroup: 'house',
   currentLoc: 'fridge',
   currentTab: 'loc',          // 'loc' | 'status' | 'log' | 'settings'
   currentStatus: null,        // 'refill' | 'order' | 'normal' | null
@@ -28,6 +34,7 @@ function loadAll(){
   try {
     const s = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
     if (s.currentLoc && LOCATIONS[s.currentLoc]) STATE.currentLoc = s.currentLoc;
+    STATE.currentGroup = LOCATIONS[STATE.currentLoc].group;
   } catch {}
 }
 function saveItems(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE.items)); }
@@ -103,18 +110,46 @@ function renderKpis(){
 }
 
 /* ---------- Tabs / Views ---------- */
+function renderSubTabs(){
+  const wrap = document.getElementById('sub-segment-tabs');
+  if (!wrap) return;
+  if (STATE.currentTab !== 'loc'){ wrap.innerHTML = ''; wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  const locs = GROUPS[STATE.currentGroup].locs;
+  wrap.innerHTML = locs.map(loc => {
+    const m = LOCATIONS[loc];
+    const active = loc === STATE.currentLoc ? 'active' : '';
+    return `<button class="sub-segment-btn ${active}" data-loc="${loc}" onclick="showLoc('${loc}')"><span class="seg-icon">${m.icon}</span>${escapeHtml(m.label)}</button>`;
+  }).join('');
+}
 function showTab(tab){
   STATE.currentTab = tab;
   document.getElementById('view-loc').style.display = (tab === 'loc') ? '' : 'none';
   document.getElementById('view-status').style.display = (tab === 'status') ? '' : 'none';
   document.getElementById('view-log').style.display = (tab === 'log') ? '' : 'none';
   document.getElementById('view-settings').style.display = (tab === 'settings') ? '' : 'none';
-  // segment tabs are only "active" when in loc view
+  // main group tabs are only "active" when in loc view
   document.querySelectorAll('.main-segment-btn').forEach(btn => {
-    btn.classList.toggle('active', tab === 'loc' && btn.dataset.loc === STATE.currentLoc);
+    btn.classList.toggle('active', tab === 'loc' && btn.dataset.group === STATE.currentGroup);
   });
+  renderSubTabs();
   if (tab === 'log') renderLog();
   window.scrollTo({ top:0, behavior:'smooth' });
+}
+function showGroup(group){
+  if (!GROUPS[group]) return;
+  if (STATE.currentTab === 'loc' && STATE.currentGroup === group){
+    window.scrollTo({ top:0, behavior:'smooth' });
+    return;
+  }
+  STATE.currentGroup = group;
+  // 既存の currentLoc がこのグループに無ければ先頭へ
+  if (LOCATIONS[STATE.currentLoc].group !== group){
+    STATE.currentLoc = GROUPS[group].locs[0];
+  }
+  saveState();
+  showTab('loc');
+  renderLoc();
 }
 function showLoc(loc){
   if (!LOCATIONS[loc]) return;
@@ -123,6 +158,7 @@ function showLoc(loc){
     return;
   }
   STATE.currentLoc = loc;
+  STATE.currentGroup = LOCATIONS[loc].group;
   saveState();
   showTab('loc');
   renderLoc();

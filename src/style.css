@@ -88,28 +88,48 @@ a{color:inherit}
 .kpi-card.good .kpi-value{color:#d7ffe2}
 
 .main-segment-tabs{
-  display:flex;gap:8px;
-  padding:0 16px 10px;
-  overflow-x:auto;
-  scrollbar-width:none;
-  -webkit-overflow-scrolling:touch;
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;
+  padding:0 16px 8px;
 }
-.main-segment-tabs::-webkit-scrollbar{display:none}
 .main-segment-btn{
-  flex:0 0 auto;
-  min-height:48px;padding:10px 14px;border-radius:14px;
+  min-height:52px;padding:10px 14px;border-radius:16px;
   background:var(--surface);border:1.5px solid var(--line);
-  color:#7c8074;font-size:13px;font-weight:800;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;gap:6px;
+  color:#7c8074;font-size:14px;font-weight:800;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
   box-shadow:var(--shadow);transition:all .15s;
   touch-action:manipulation;white-space:nowrap;
 }
-.main-segment-btn .seg-icon{font-size:16px}
+.main-segment-btn .seg-icon{font-size:18px}
 .main-segment-btn.active{
   color:#fff;border-color:transparent;
   background:linear-gradient(135deg,var(--navy),var(--navy-2));
 }
 .main-segment-btn:active{transform:scale(.98)}
+
+.sub-segment-tabs{
+  display:flex;gap:6px;
+  padding:2px 16px 10px;
+  overflow-x:auto;
+  scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;
+}
+.sub-segment-tabs::-webkit-scrollbar{display:none}
+.sub-segment-btn{
+  flex:0 0 auto;
+  min-height:38px;padding:8px 14px;border-radius:999px;
+  background:var(--surface);border:1px solid var(--line);
+  color:#7c8074;font-size:12px;font-weight:800;cursor:pointer;
+  display:flex;align-items:center;gap:5px;
+  transition:all .15s;
+  touch-action:manipulation;white-space:nowrap;
+}
+.sub-segment-btn .seg-icon{font-size:14px}
+.sub-segment-btn.active{
+  color:#fff;border-color:transparent;
+  background:linear-gradient(135deg,var(--navy-2),#5fa17e);
+  box-shadow:0 4px 12px rgba(58,107,79,.18);
+}
+.sub-segment-btn:active{transform:scale(.97)}
 
 .view-wrap{padding-top:6px;padding-bottom:30px}
 
