@@ -16,6 +16,15 @@ const GROUPS = {
   'warehouse': { label: '倉庫', icon: '📦', locs: ['storage','storage-fridge'] },
 };
 
+// カテゴリチップを表示する loc とカテゴリ一覧
+const CATEGORY_CHIP_LOCS = new Set(['pantry', 'storage']);
+const CATEGORY_CHIPS = [
+  { key: 'all',   label: 'すべて' },
+  { key: '食材', label: '食材' },
+  { key: '飲料', label: '飲料' },
+  { key: '消耗品', label: '消耗品' },
+];
+
 const STATE = {
   items: [],
   logs: [],
@@ -23,6 +32,7 @@ const STATE = {
   currentLoc: 'fridge',
   currentTab: 'loc',          // 'loc' | 'status' | 'log' | 'settings'
   currentStatus: null,        // 'refill' | 'order' | 'normal' | null
+  currentCategory: 'all',     // カテゴリチップ用 (pantry/storage のみ)
   editingId: null,
   qtyEditingId: null,
 };
@@ -147,6 +157,7 @@ function showGroup(group){
   if (LOCATIONS[STATE.currentLoc].group !== group){
     STATE.currentLoc = GROUPS[group].locs[0];
   }
+  STATE.currentCategory = 'all';
   saveState();
   showTab('loc');
   renderLoc();
@@ -159,6 +170,7 @@ function showLoc(loc){
   }
   STATE.currentLoc = loc;
   STATE.currentGroup = LOCATIONS[loc].group;
+  STATE.currentCategory = 'all';
   saveState();
   showTab('loc');
   renderLoc();
@@ -177,10 +189,31 @@ function toggleFilterPanel(){
 }
 
 /* ---------- Render: location view ---------- */
+function renderCatChips(){
+  const row = document.getElementById('cat-chip-row');
+  if (!row) return;
+  if (!CATEGORY_CHIP_LOCS.has(STATE.currentLoc)){
+    row.style.display = 'none';
+    row.innerHTML = '';
+    return;
+  }
+  row.style.display = '';
+  row.innerHTML = CATEGORY_CHIPS.map(c => {
+    const active = c.key === STATE.currentCategory ? 'active' : '';
+    return `<button class="cat-chip ${active}" data-cat="${escapeAttr(c.key)}" onclick="setCategoryChip('${c.key}')">${escapeHtml(c.label)}</button>`;
+  }).join('');
+}
+function setCategoryChip(cat){
+  STATE.currentCategory = cat;
+  renderCatChips();
+  renderLoc();
+}
+
 function renderLoc(){
   const loc = STATE.currentLoc;
   const meta = LOCATIONS[loc];
   document.getElementById('loc-section-title').textContent = `${meta.icon} ${meta.label}`;
+  renderCatChips();
   // populate name select with items in this loc
   const nameSelect = document.getElementById('search-name');
   const prevName = nameSelect.value;
@@ -194,6 +227,9 @@ function renderLoc(){
   let items = STATE.items.filter(i => i.location === loc);
   if (filterName) items = items.filter(i => i.name === filterName);
   if (filterStatus !== 'all') items = items.filter(i => getStatus(i) === filterStatus);
+  if (CATEGORY_CHIP_LOCS.has(loc) && STATE.currentCategory !== 'all'){
+    items = items.filter(i => i.category === STATE.currentCategory);
+  }
   // sort: order > refill > normal, then name
   const order = { order:0, refill:1, normal:2 };
   items.sort((a,b)=>{

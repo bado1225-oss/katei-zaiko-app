@@ -133,6 +133,25 @@ a{color:inherit}
 
 .view-wrap{padding-top:6px;padding-bottom:30px}
 
+.cat-chip-row{
+  display:flex;gap:6px;flex-wrap:wrap;
+  padding:6px 16px 8px;
+}
+.cat-chip{
+  flex:1;min-width:60px;
+  min-height:36px;padding:6px 10px;border-radius:12px;
+  background:var(--surface);border:1.5px solid var(--line);
+  color:#7c8074;font-size:12px;font-weight:800;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:4px;
+  transition:all .15s;touch-action:manipulation;white-space:nowrap;
+}
+.cat-chip.active{
+  color:#fff;border-color:transparent;
+  background:linear-gradient(135deg,var(--navy),var(--navy-2));
+  box-shadow:0 4px 10px rgba(58,107,79,.16);
+}
+.cat-chip:active{transform:scale(.97)}
+
 .filter-toggle-wrap{padding:0 16px 6px}
 .filter-toggle-btn{
   width:100%;min-height:40px;border-radius:14px;
