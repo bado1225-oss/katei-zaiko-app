@@ -11,12 +11,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=20260425g">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260425g">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=20260425g">
-<link rel="manifest" href="manifest.webmanifest?v=20260425g">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=20260425h">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260425h">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=20260425h">
+<link rel="manifest" href="manifest.webmanifest?v=20260425h">
 <title>おうち在庫</title>
-<link rel="stylesheet" href="src/style.css?v=20260425g">
+<link rel="stylesheet" href="src/style.css?v=20260425h">
 </head>
 <body>
 <div class="app">
@@ -121,6 +121,14 @@
               <button class="settings-btn" onclick="cloudPushAll()">📤 この端末のデータをクラウドに上げる</button>
               <button class="settings-btn danger" onclick="cloudSignOut()">ログアウト</button>
             </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-title">🌱 テンプレート品目を追加</div>
+          <div class="settings-help">一般家庭でよく使う品目(食材・飲料・日用品 約110件)をまとめて登録します。同名の品目は重複追加されません。</div>
+          <div class="settings-actions">
+            <button class="settings-btn primary" onclick="loadTemplates()">テンプレートを追加する</button>
           </div>
         </div>
 
@@ -269,7 +277,8 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script type="module" src="src/sync.js?v=20260425g"></script>
-<script src="src/main.js?v=20260425g"></script>
+<script type="module" src="src/sync.js?v=20260425h"></script>
+<script src="src/templates.js?v=20260425h"></script>
+<script src="src/main.js?v=20260425h"></script>
 </body>
 </html>

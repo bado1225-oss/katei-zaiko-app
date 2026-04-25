@@ -1,11 +1,12 @@
 // Service Worker - 静的ファイルのみキャッシュ。APIなし(localStorage運用)
-const CACHE_NAME = 'katei-zaiko-v20260425g';
+const CACHE_NAME = 'katei-zaiko-v20260425h';
 const ASSETS = [
   './',
   './index.html',
   './src/style.css',
   './src/main.js',
   './src/sync.js',
+  './src/templates.js',
   './manifest.webmanifest',
   './icons/icon-32.png',
   './icons/icon-180.png',

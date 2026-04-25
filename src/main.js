@@ -552,6 +552,41 @@ function importJson(e){
   reader.readAsText(file);
   e.target.value = '';
 }
+function loadTemplates(){
+  const templates = window.KATEI_TEMPLATES || [];
+  if (templates.length === 0){ showToast('テンプレートが見つかりません'); return; }
+  // 同名+同loc は重複扱い
+  const existing = new Set(STATE.items.map(i => `${i.name}|${i.location}`));
+  const toAdd = templates.filter(t => !existing.has(`${t.name}|${t.location}`));
+  if (toAdd.length === 0){ showToast('追加できる新しい品目がありません'); return; }
+  if (!confirm(`${toAdd.length}件のテンプレート品目を追加します。よろしいですか?`)) return;
+  const t = now();
+  for (const tmpl of toAdd){
+    const item = {
+      id: uid(),
+      name: tmpl.name,
+      location: tmpl.location,
+      category: tmpl.category || '食材',
+      unit: tmpl.unit || '個',
+      minStock: tmpl.minStock ?? 0,
+      target: tmpl.target ?? null,
+      supplier: '',
+      url: '',
+      note: '',
+      stock: 0,
+      createdAt: t,
+      updatedAt: t,
+    };
+    STATE.items.push(item);
+    syncItem(item);
+  }
+  saveItems();
+  addLog('テンプレート追加', '', `${toAdd.length}件`);
+  renderKpis();
+  if (STATE.currentTab === 'loc') renderLoc();
+  showToast(`${toAdd.length}件 追加しました`);
+}
+
 function clearAll(){
   if (!confirm('すべての在庫データと履歴を削除します。元に戻せません。よろしいですか？')) return;
   if (!confirm('本当に削除しますか？')) return;
