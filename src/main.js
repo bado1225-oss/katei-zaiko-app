@@ -1,4 +1,4 @@
-// 家庭在庫管理アプリ - localStorage版
+// おうち在庫 - localStorage + Firebase 同期版
 const STORAGE_KEY = 'katei-zaiko-items-v1';
 const LOG_KEY = 'katei-zaiko-logs-v1';
 const STATE_KEY = 'katei-zaiko-state-v1';
@@ -35,6 +35,7 @@ const STATE = {
   currentCategory: 'all',     // カテゴリチップ用 (pantry/storage のみ)
   editingId: null,
   qtyEditingId: null,
+  cloudUser: null,            // Firebase auth user (null=未ログイン)
 };
 
 /* ---------- storage ---------- */
@@ -90,8 +91,16 @@ function showToast(msg){
   showToast._t = setTimeout(()=>t.classList.remove('show'), 2000);
 }
 function addLog(action, itemName, detail){
-  STATE.logs.unshift({ id: uid(), at: now(), action, itemName, detail: detail || '' });
+  const log = { id: uid(), at: now(), action, itemName, detail: detail || '' };
+  STATE.logs.unshift(log);
   saveLogs();
+  if (STATE.cloudUser && window.kateiSync) window.kateiSync.addLog(log).catch(err => showToast('履歴の同期に失敗: ' + err.message));
+}
+function syncItem(item){
+  if (STATE.cloudUser && window.kateiSync) window.kateiSync.upsertItem(item).catch(err => showToast('同期失敗: ' + err.message));
+}
+function syncDeleteItem(id){
+  if (STATE.cloudUser && window.kateiSync) window.kateiSync.deleteItem(id).catch(err => showToast('削除同期失敗: ' + err.message));
 }
 
 /* ---------- KPI ---------- */
@@ -353,6 +362,7 @@ function stepQty(id, delta){
   item.stock = after;
   item.updatedAt = now();
   saveItems();
+  syncItem(item);
   addLog(delta > 0 ? '在庫追加' : '在庫消費', item.name, `${before} → ${after} ${item.unit || ''}`);
   renderKpis();
   if (STATE.currentTab === 'loc') renderLoc();
@@ -391,6 +401,7 @@ function saveQtyModal(){
   item.stock = v;
   item.updatedAt = now();
   saveItems();
+  syncItem(item);
   addLog('在庫変更', item.name, `${before} → ${v} ${item.unit || ''}`);
   closeQtyModal();
   renderKpis();
@@ -452,6 +463,7 @@ function submitModal(){
       updatedAt: now(),
     });
     saveItems();
+    syncItem(item);
     addLog('品目編集', name);
     showToast('保存しました');
   } else {
@@ -468,6 +480,7 @@ function submitModal(){
     };
     STATE.items.push(newItem);
     saveItems();
+    syncItem(newItem);
     addLog('品目追加', name, `初期在庫 ${newItem.stock} ${unit}`);
     showToast('追加しました');
     // jump to that location
@@ -487,6 +500,7 @@ function deleteItem(){
   if (!confirm(`「${item.name}」を削除しますか？`)) return;
   STATE.items = STATE.items.filter(i=>i.id!==id);
   saveItems();
+  syncDeleteItem(id);
   addLog('品目削除', item.name);
   closeModal();
   renderKpis();
@@ -524,6 +538,9 @@ function importJson(e){
       STATE.items = data.items;
       STATE.logs = Array.isArray(data.logs) ? data.logs : [];
       saveItems(); saveLogs();
+      if (STATE.cloudUser && window.kateiSync){
+        window.kateiSync.pushAll({ items: STATE.items, logs: STATE.logs }).catch(err => showToast('クラウド反映失敗: ' + err.message));
+      }
       addLog('データ復元', '', `${data.items.length}件`);
       renderKpis();
       renderLoc();
@@ -540,6 +557,9 @@ function clearAll(){
   if (!confirm('本当に削除しますか？')) return;
   STATE.items = []; STATE.logs = [];
   saveItems(); saveLogs();
+  if (STATE.cloudUser && window.kateiSync) {
+    window.kateiSync.clearAll().catch(err => showToast('クラウド削除失敗: ' + err.message));
+  }
   renderKpis(); renderLoc();
   showToast('すべて削除しました');
 }
@@ -550,12 +570,74 @@ function escapeHtml(s){
 }
 function escapeAttr(s){ return escapeHtml(s); }
 
+/* ---------- Cloud sync (Firebase) ---------- */
+function renderCloudUI(){
+  const status = document.getElementById('cloud-status');
+  const form = document.getElementById('cloud-login-form');
+  const loggedIn = document.getElementById('cloud-logged-in');
+  if (!status || !form || !loggedIn) return;
+  if (STATE.cloudUser){
+    status.textContent = `✅ ログイン中: ${STATE.cloudUser.email}`;
+    status.classList.add('connected');
+    form.style.display = 'none';
+    loggedIn.style.display = '';
+  } else {
+    status.textContent = '未ログイン';
+    status.classList.remove('connected');
+    form.style.display = '';
+    loggedIn.style.display = 'none';
+  }
+}
+function cloudSignIn(){
+  const email = document.getElementById('cloud-email').value.trim();
+  const password = document.getElementById('cloud-password').value;
+  if (!email || !password){ showToast('メールとパスワードを入力してください'); return; }
+  if (!window.kateiSync){ showToast('Firebase の準備ができていません'); return; }
+  window.kateiSync.signIn(email, password)
+    .then(() => { showToast('ログインしました'); document.getElementById('cloud-password').value = ''; })
+    .catch(err => showToast('ログイン失敗: ' + (err.code || err.message)));
+}
+function cloudSignOut(){
+  if (!window.kateiSync) return;
+  window.kateiSync.signOut().then(() => showToast('ログアウトしました'));
+}
+function cloudPushAll(){
+  if (!window.kateiSync || !STATE.cloudUser){ showToast('ログインしてください'); return; }
+  if (!confirm(`この端末の ${STATE.items.length}件 と履歴 ${STATE.logs.length}件 をクラウドに上書きアップロードします。よろしいですか?`)) return;
+  window.kateiSync.pushAll({ items: STATE.items, logs: STATE.logs })
+    .then(() => showToast('アップロードしました'))
+    .catch(err => showToast('失敗: ' + err.message));
+}
+function setupCloudListeners(){
+  window.addEventListener('katei-auth-change', e => {
+    STATE.cloudUser = e.detail.user;
+    renderCloudUI();
+  });
+  window.addEventListener('katei-items-change', e => {
+    STATE.items = e.detail.items;
+    saveItems();
+    renderKpis();
+    if (STATE.currentTab === 'loc') renderLoc();
+    else if (STATE.currentTab === 'status') renderStatus();
+  });
+  window.addEventListener('katei-logs-change', e => {
+    STATE.logs = e.detail.logs;
+    saveLogs();
+    if (STATE.currentTab === 'log') renderLog();
+  });
+  window.addEventListener('katei-sync-error', e => {
+    showToast(`同期エラー(${e.detail.kind}): ${e.detail.message}`);
+  });
+}
+
 /* ---------- init ---------- */
 function init(){
   loadAll();
+  setupCloudListeners();
   renderKpis();
   showTab('loc');
   renderLoc();
+  renderCloudUI();
   // Service Worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(()=>{});

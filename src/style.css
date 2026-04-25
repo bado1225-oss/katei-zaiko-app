@@ -285,7 +285,18 @@ textarea.form-input{resize:vertical;min-height:60px}
   color:var(--navy);font-size:13px;font-weight:800;cursor:pointer;
 }
 .settings-btn.danger{color:var(--red);border-color:#f0c8c6}
+.settings-btn.primary{
+  background:linear-gradient(135deg,var(--navy),var(--navy-2));color:#fff;border-color:transparent;
+}
 .settings-btn:active{transform:scale(.98)}
+.cloud-status{
+  padding:8px 12px;border-radius:10px;
+  background:#f4f7f1;color:#7c8074;
+  font-size:12px;font-weight:700;margin-bottom:12px;
+}
+.cloud-status.connected{
+  background:#dcecdf;color:#2f6048;
+}
 
 /* Modal */
 .modal-overlay{

@@ -11,12 +11,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=20260425f">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260425f">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=20260425f">
-<link rel="manifest" href="manifest.webmanifest?v=20260425f">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=20260425g">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260425g">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=20260425g">
+<link rel="manifest" href="manifest.webmanifest?v=20260425g">
 <title>おうち在庫</title>
-<link rel="stylesheet" href="src/style.css?v=20260425f">
+<link rel="stylesheet" href="src/style.css?v=20260425g">
 </head>
 <body>
 <div class="app">
@@ -99,6 +99,31 @@
     <div id="view-settings" style="display:none">
       <div class="section-label"><span>⚙️ 設定</span></div>
       <div class="settings-body">
+        <div class="settings-section" id="cloud-section">
+          <div class="settings-title">☁️ 家族と同期 (Firebase)</div>
+          <div class="settings-help">家族のメールアドレスでログインすると、在庫がリアルタイムで共有されます。</div>
+          <div class="cloud-status" id="cloud-status">未ログイン</div>
+          <div id="cloud-login-form">
+            <div class="form-row">
+              <div class="form-label">メールアドレス</div>
+              <input class="form-input" id="cloud-email" type="email" autocomplete="username" placeholder="example@example.com">
+            </div>
+            <div class="form-row">
+              <div class="form-label">パスワード</div>
+              <input class="form-input" id="cloud-password" type="password" autocomplete="current-password" placeholder="********">
+            </div>
+            <div class="settings-actions" style="margin-top:8px">
+              <button class="settings-btn primary" onclick="cloudSignIn()">ログインする</button>
+            </div>
+          </div>
+          <div id="cloud-logged-in" style="display:none">
+            <div class="settings-actions">
+              <button class="settings-btn" onclick="cloudPushAll()">📤 この端末のデータをクラウドに上げる</button>
+              <button class="settings-btn danger" onclick="cloudSignOut()">ログアウト</button>
+            </div>
+          </div>
+        </div>
+
         <div class="settings-section">
           <div class="settings-title">📥 データのバックアップ・復元</div>
           <div class="settings-help">JSONファイルとして書き出し / 読み込みができます。機種変更時のデータ移行に。</div>
@@ -244,6 +269,7 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script src="src/main.js?v=20260425f"></script>
+<script type="module" src="src/sync.js?v=20260425g"></script>
+<script src="src/main.js?v=20260425g"></script>
 </body>
 </html>
