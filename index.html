@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="家庭在庫">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#3a6b4f">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=20260425a">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260425a">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=20260425a">
+<link rel="manifest" href="manifest.webmanifest?v=20260425a">
+<title>家庭在庫管理</title>
+<link rel="stylesheet" href="src/style.css?v=20260425a">
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="header-title-wrap">
+        <h1>家庭在庫</h1>
+        <div class="header-sub" id="header-date"></div>
+      </div>
+      <div class="header-actions">
+        <button class="header-icon-btn" onclick="showTab('log')" aria-label="履歴" title="履歴">🕘</button>
+        <button class="header-icon-btn" onclick="showTab('settings')" aria-label="設定" title="設定">⚙️</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard">
+    <div class="hero-card">
+      <div class="hero-top">
+        <div>
+          <div class="hero-title">今日の在庫ダッシュボード</div>
+        </div>
+        <div class="hero-stamp" id="hero-stamp">更新中</div>
+      </div>
+      <div class="kpi-grid" id="dashboard-kpis"></div>
+    </div>
+  </div>
+
+  <div class="main-segment-tabs" id="main-segment-tabs">
+    <button class="main-segment-btn active" data-loc="fridge" onclick="showLoc('fridge')"><span class="seg-icon">🥬</span>冷蔵庫</button>
+    <button class="main-segment-btn" data-loc="pantry" onclick="showLoc('pantry')"><span class="seg-icon">🥫</span>パントリー</button>
+    <button class="main-segment-btn" data-loc="freezer" onclick="showLoc('freezer')"><span class="seg-icon">🧊</span>冷凍ストッカー</button>
+    <button class="main-segment-btn" data-loc="storage" onclick="showLoc('storage')"><span class="seg-icon">📦</span>倉庫</button>
+    <button class="main-segment-btn" data-loc="storage-fridge" onclick="showLoc('storage-fridge')"><span class="seg-icon">🏠</span>倉庫冷蔵庫</button>
+  </div>
+
+  <div class="view-wrap">
+    <div id="view-loc">
+      <div class="filter-toggle-wrap">
+        <button class="filter-toggle-btn" id="filter-toggle-loc" onclick="toggleFilterPanel()">検索・並び替え <span class="arrow">▼</span></button>
+      </div>
+      <div class="filter-panel" id="filter-panel-loc">
+        <div class="toolbar-row">
+          <select id="search-name" class="search-input" onchange="renderLoc()">
+            <option value="">商品名: すべて</option>
+          </select>
+          <select id="filter-status" class="toolbar-select" onchange="renderLoc()">
+            <option value="all">表示: すべて</option>
+            <option value="refill">補充必要</option>
+            <option value="order">発注必要</option>
+            <option value="normal">正常</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section-label">
+        <span id="loc-section-title">冷蔵庫</span>
+        <span class="section-pill" id="loc-count-pill">0件</span>
+      </div>
+      <div id="loc-items" class="item-list"></div>
+      <div class="add-btn-wrap"><button class="add-btn" onclick="openModal({})">＋ 新規品目を追加する</button></div>
+      <div class="last-updated" id="last-updated-loc"></div>
+    </div>
+
+    <div id="view-status" style="display:none">
+      <div class="section-label">
+        <span id="status-section-title">補充必要</span>
+        <span class="section-pill" id="status-count-pill">0件</span>
+      </div>
+      <div id="status-items" class="item-list"></div>
+    </div>
+
+    <div id="view-log" style="display:none">
+      <div class="section-label">
+        <span>履歴</span>
+        <span class="section-pill">最新100件</span>
+      </div>
+      <div id="log-items" class="item-list"></div>
+    </div>
+
+    <div id="view-settings" style="display:none">
+      <div class="section-label"><span>⚙️ 設定</span></div>
+      <div class="settings-body">
+        <div class="settings-section">
+          <div class="settings-title">📥 データのバックアップ・復元</div>
+          <div class="settings-help">JSONファイルとして書き出し / 読み込みができます。機種変更時のデータ移行に。</div>
+          <div class="settings-actions">
+            <button class="settings-btn" onclick="exportJson()">📤 エクスポート</button>
+            <button class="settings-btn" onclick="document.getElementById('import-file').click()">📥 インポート</button>
+            <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importJson(event)">
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-title">🗑 すべて削除</div>
+          <div class="settings-help">在庫データと履歴をすべて削除します。元に戻せません。</div>
+          <div class="settings-actions">
+            <button class="settings-btn danger" onclick="clearAll()">すべて削除する</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-title">ℹ️ アプリについて</div>
+          <div class="settings-help">家庭在庫管理アプリ v1.0<br>データはこの端末のブラウザに保存されます (localStorage)。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Item Edit Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">新規品目を追加</div>
+
+    <div class="form-row">
+      <div class="form-label">商品名 *</div>
+      <input class="form-input" id="f-name" type="text" maxlength="60" placeholder="例: 牛乳">
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">保管場所 *</div>
+      <select class="form-select" id="f-location">
+        <option value="fridge">🥬 冷蔵庫</option>
+        <option value="pantry">🥫 パントリー</option>
+        <option value="freezer">🧊 冷凍ストッカー</option>
+        <option value="storage">📦 倉庫</option>
+        <option value="storage-fridge">🏠 倉庫冷蔵庫</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">カテゴリ</div>
+      <select class="form-select" id="f-category">
+        <option value="食材">食材</option>
+        <option value="飲料">飲料</option>
+        <option value="調味料">調味料</option>
+        <option value="冷凍食品">冷凍食品</option>
+        <option value="日用品">日用品</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">単位 *</div>
+      <select class="form-select" id="f-unit">
+        <option value="個">個</option>
+        <option value="本">本</option>
+        <option value="袋">袋</option>
+        <option value="箱">箱</option>
+        <option value="パック">パック</option>
+        <option value="缶">缶</option>
+        <option value="kg">kg</option>
+        <option value="g">g</option>
+        <option value="L">L</option>
+        <option value="ml">ml</option>
+      </select>
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">補充ライン (これ以下で補充必要)</div>
+      <input class="form-input" id="f-min" type="number" inputmode="numeric" min="0" max="9999" placeholder="例: 1">
+      <div class="form-help">在庫がこの数以下になると「補充必要」になります</div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">目標在庫数</div>
+      <input class="form-input" id="f-target" type="number" inputmode="numeric" min="0" max="9999" placeholder="例: 3">
+      <div class="form-help">空欄可。補充ラインより大きな数</div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">仕入先・購入店</div>
+      <input class="form-input" id="f-supplier" type="text" placeholder="例: イオン">
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">仕入先URL</div>
+      <input class="form-input" id="f-url" type="url" placeholder="https://...">
+    </div>
+
+    <div class="form-row">
+      <div class="form-label">メモ</div>
+      <textarea class="form-input" id="f-note" rows="2" placeholder="例: 賞味期限や好みのメーカーなど"></textarea>
+    </div>
+
+    <div class="form-row" id="f-stock-row">
+      <div class="form-label">初期在庫数</div>
+      <input class="form-input" id="f-stock" type="number" inputmode="numeric" min="0" max="9999" placeholder="0">
+    </div>
+
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">キャンセル</button>
+      <button class="modal-submit" id="modal-submit-btn" onclick="submitModal()">追加する</button>
+    </div>
+
+    <div id="delete-section" style="display:none">
+      <hr class="modal-divider">
+      <button class="modal-delete" onclick="deleteItem()">この品目を削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quantity Edit Modal -->
+<div class="modal-overlay" id="qty-modal-overlay" onclick="closeQtyModalOutside(event)">
+  <div class="modal">
+    <div class="modal-title" id="qty-modal-title">在庫数を変更</div>
+    <div class="qty-modal-value"><input class="qty-modal-input" id="qty-modal-input" type="number" inputmode="numeric" min="0" max="9999"></div>
+    <div class="qty-modal-unit" id="qty-modal-unit">個</div>
+    <div class="qty-modal-actions">
+      <button class="qty-modal-btn" onclick="stepQtyModal(-1)">−</button>
+      <button class="qty-modal-btn" onclick="stepQtyModal(1)">＋</button>
+    </div>
+    <div class="qty-modal-meta" id="qty-modal-meta"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeQtyModal()">キャンセル</button>
+      <button class="modal-submit" onclick="saveQtyModal()">変更を保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script src="src/main.js?v=20260425a"></script>
+</body>
+</html>
