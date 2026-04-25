@@ -22,7 +22,7 @@ const CATEGORY_CHIPS = [
   { key: 'all',   label: 'すべて' },
   { key: '食材', label: '食材' },
   { key: '飲料', label: '飲料' },
-  { key: '消耗品', label: '消耗品' },
+  { key: '日用品', label: '日用品' },
 ];
 
 const STATE = {
@@ -46,6 +46,12 @@ function loadAll(){
     if (s.currentLoc && LOCATIONS[s.currentLoc]) STATE.currentLoc = s.currentLoc;
     STATE.currentGroup = LOCATIONS[STATE.currentLoc].group;
   } catch {}
+  // カテゴリ「消耗品」→「日用品」リネーム (旧版から移行)
+  let migrated = false;
+  for (const i of STATE.items){
+    if (i.category === '消耗品'){ i.category = '日用品'; migrated = true; }
+  }
+  if (migrated) saveItems();
 }
 function saveItems(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE.items)); }
 function saveLogs(){
@@ -268,17 +274,18 @@ function renderItemCard(item){
   const noteHtml = item.note ? `<div class="item-note">📝 ${escapeHtml(item.note)}</div>` : '';
   const linkBtn = item.url ? `<a class="item-link-btn" href="${escapeAttr(item.url)}" target="_blank" rel="noopener">🛒 ${escapeHtml(item.supplier || '購入先')}</a>` : '';
   const thr = (item.minStock != null && item.minStock !== '') ? `補充ライン: ${item.minStock}` : '';
+  const subtitle = item.category ? escapeHtml(item.category) : '未分類';
   return `
     <div class="item-card" data-id="${item.id}">
       <div class="item-row1">
-        <div class="item-name">${escapeHtml(item.name)}</div>
+        <div class="item-title-wrap">
+          <div class="item-name">${escapeHtml(item.name)}</div>
+          <div class="item-subtitle">${subtitle}</div>
+        </div>
         <div class="item-meta">
           <span class="item-tag ${s}">${statusLabel(s)}</span>
           <span class="item-tag">${loc.icon} ${escapeHtml(loc.label)}</span>
         </div>
-      </div>
-      <div class="item-meta">
-        ${item.category ? `<span class="item-tag cat">${escapeHtml(item.category)}</span>` : ''}
       </div>
       <div class="item-row2">
         <button class="qty-step" onclick="stepQty('${item.id}',-1)">−</button>
