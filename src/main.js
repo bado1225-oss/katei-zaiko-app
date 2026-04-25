@@ -7,12 +7,14 @@ const LOCATIONS = {
   'fridge':         { label: '冷蔵庫',         icon: '🥬', group: 'house' },
   'pantry':         { label: 'パントリー',     icon: '🥫', group: 'house' },
   'freezer':        { label: '冷凍ストッカー', icon: '🧊', group: 'house' },
+  'vanity':         { label: '洗面所',         icon: '🪥', group: 'house' },
+  'bath':           { label: 'お風呂',         icon: '🛁', group: 'house' },
   'storage':        { label: '倉庫',           icon: '📦', group: 'warehouse' },
   'storage-fridge': { label: '倉庫冷蔵庫',     icon: '❄️', group: 'warehouse' },
 };
 
 const GROUPS = {
-  'house':     { label: '家',   icon: '🏠', locs: ['fridge','pantry','freezer'] },
+  'house':     { label: '家',   icon: '🏠', locs: ['fridge','pantry','freezer','vanity','bath'] },
   'warehouse': { label: '倉庫', icon: '📦', locs: ['storage','storage-fridge'] },
 };
 
