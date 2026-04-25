@@ -249,7 +249,8 @@ function renderLoc(){
   if (items.length === 0){
     list.innerHTML = `<div class="empty-msg">${meta.label} に登録された品目はありません</div>`;
   } else {
-    list.innerHTML = items.map(renderItemCard).join('');
+    const useGroups = CATEGORY_CHIP_LOCS.has(loc) && STATE.currentCategory === 'all';
+    list.innerHTML = useGroups ? renderItemsGroupedByCategory(items) : items.map(renderItemCard).join('');
   }
   const lastUpdated = STATE.items.reduce((m,i)=> i.updatedAt && (!m || i.updatedAt > m) ? i.updatedAt : m, null);
   document.getElementById('last-updated-loc').textContent = lastUpdated ? `最終更新: ${fmtDate(lastUpdated)}` : '';
@@ -266,6 +267,27 @@ function renderStatus(){
   } else {
     list.innerHTML = items.map(renderItemCard).join('');
   }
+}
+
+function renderItemsGroupedByCategory(items){
+  // 既に items はステータス順にソート済み。カテゴリ毎にバケットへ。
+  const order = ['食材', '飲料', '日用品'];
+  const grouped = {};
+  for (const it of items){
+    const cat = it.category || 'その他';
+    (grouped[cat] = grouped[cat] || []).push(it);
+  }
+  const cats = [
+    ...order.filter(c => grouped[c]),
+    ...Object.keys(grouped).filter(c => !order.includes(c)).sort(),
+  ];
+  return cats.map(cat => `
+    <div class="cat-group-header">
+      <span class="cat-group-title">${escapeHtml(cat)}</span>
+      <span class="cat-group-count">${grouped[cat].length}件</span>
+    </div>
+    ${grouped[cat].map(renderItemCard).join('')}
+  `).join('');
 }
 
 function renderItemCard(item){

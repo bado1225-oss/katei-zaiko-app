@@ -193,6 +193,20 @@ textarea.form-input{resize:vertical;min-height:60px}
 }
 
 .item-list{padding:0 16px;display:flex;flex-direction:column;gap:10px}
+.cat-group-header{
+  display:flex;align-items:center;gap:8px;
+  padding:14px 4px 4px;margin-top:4px;
+  font-size:14px;font-weight:800;color:var(--navy);
+  letter-spacing:.04em;
+  border-bottom:1px solid var(--line);
+  padding-bottom:6px;
+}
+.cat-group-header:first-child{margin-top:0;padding-top:6px}
+.cat-group-title{flex:1}
+.cat-group-count{
+  padding:3px 9px;border-radius:999px;
+  background:#eaf2e7;color:#5a6b56;font-size:11px;font-weight:800;
+}
 .item-card{
   background:var(--surface);
   border:1px solid var(--line);
