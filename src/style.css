@@ -107,23 +107,22 @@ a{color:inherit}
 .main-segment-btn:active{transform:scale(.98)}
 
 .sub-segment-tabs{
-  display:flex;gap:6px;
+  display:grid;
+  grid-auto-flow:column;
+  grid-auto-columns:1fr;
+  gap:6px;
   padding:2px 16px 10px;
-  overflow-x:auto;
-  scrollbar-width:none;
-  -webkit-overflow-scrolling:touch;
 }
-.sub-segment-tabs::-webkit-scrollbar{display:none}
 .sub-segment-btn{
-  flex:0 0 auto;
-  min-height:38px;padding:8px 14px;border-radius:999px;
+  min-height:50px;padding:6px 4px;border-radius:14px;
   background:var(--surface);border:1px solid var(--line);
-  color:#7c8074;font-size:12px;font-weight:800;cursor:pointer;
-  display:flex;align-items:center;gap:5px;
+  color:#7c8074;font-size:10.5px;font-weight:800;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   transition:all .15s;
-  touch-action:manipulation;white-space:nowrap;
+  touch-action:manipulation;
+  white-space:normal;line-height:1.2;text-align:center;
 }
-.sub-segment-btn .seg-icon{font-size:14px}
+.sub-segment-btn .seg-icon{font-size:18px}
 .sub-segment-btn.active{
   color:#fff;border-color:transparent;
   background:linear-gradient(135deg,var(--navy-2),#5fa17e);
