@@ -11,12 +11,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=20260426e">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260426e">
-<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=20260426e">
-<link rel="manifest" href="manifest.webmanifest?v=20260426e">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=20260426f">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=20260426f">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=20260426f">
+<link rel="manifest" href="manifest.webmanifest?v=20260426f">
 <title>おうち在庫</title>
-<link rel="stylesheet" href="src/style.css?v=20260426e">
+<link rel="stylesheet" href="src/style.css?v=20260426f">
 </head>
 <body>
 <div class="app">
@@ -228,8 +228,12 @@
     </div>
 
     <div class="form-row">
-      <div class="form-label">仕入先・購入店</div>
-      <input class="form-input" id="f-supplier" type="text" placeholder="例: イオン">
+      <div class="form-label">仕入れ先・購入店 (複数選択可)</div>
+      <div class="supplier-chips" id="f-supplier-chips"></div>
+      <div class="supplier-add-row">
+        <input class="form-input" id="f-supplier-new" type="text" placeholder="その他の店名を追加" maxlength="20">
+        <button class="supplier-add-btn" type="button" onclick="addCustomSupplier()">＋追加</button>
+      </div>
     </div>
 
     <div class="form-row">
@@ -280,8 +284,8 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script type="module" src="src/sync.js?v=20260426e"></script>
-<script src="src/templates.js?v=20260426e"></script>
-<script src="src/main.js?v=20260426e"></script>
+<script type="module" src="src/sync.js?v=20260426f"></script>
+<script src="src/templates.js?v=20260426f"></script>
+<script src="src/main.js?v=20260426f"></script>
 </body>
 </html>

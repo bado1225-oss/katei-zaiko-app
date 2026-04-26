@@ -27,6 +27,20 @@ const CATEGORY_CHIPS = [
   { key: '日用品', label: '日用品' },
 ];
 
+// 仕入れ先プリセット (固定) + ユーザー追加分は localStorage に保存
+const SUPPLIER_PRESETS = ['Amazon', 'コスモス', 'タイヨー', 'パシオ', '鮮度市場'];
+const SUPPLIERS_KEY = 'katei-zaiko-suppliers-v1';
+function loadCustomSuppliers(){
+  try { return JSON.parse(localStorage.getItem(SUPPLIERS_KEY) || '[]'); } catch { return []; }
+}
+function saveCustomSuppliers(list){ localStorage.setItem(SUPPLIERS_KEY, JSON.stringify(list)); }
+function getAllSuppliers(){
+  const custom = loadCustomSuppliers();
+  // プリセット順 → カスタム(プリセットに無いもののみ)
+  return [...SUPPLIER_PRESETS, ...custom.filter(s => !SUPPLIER_PRESETS.includes(s))];
+}
+function isPresetSupplier(name){ return SUPPLIER_PRESETS.includes(name); }
+
 const STATE = {
   items: [],
   logs: [],
@@ -51,9 +65,15 @@ function loadAll(){
     STATE.currentGroup = LOCATIONS[STATE.currentLoc].group;
   } catch {}
   // カテゴリ「消耗品」→「日用品」リネーム (旧版から移行)
+  // supplier(単体str) → suppliers(配列) に移行
   let migrated = false;
   for (const i of STATE.items){
     if (i.category === '消耗品'){ i.category = '日用品'; migrated = true; }
+    if (!Array.isArray(i.suppliers)){
+      const s = (i.supplier || '').trim();
+      i.suppliers = s ? [s] : [];
+      migrated = true;
+    }
   }
   if (migrated) saveItems();
 }
@@ -311,17 +331,34 @@ function renderStatus(){
   }
 }
 
+function getItemSuppliers(it){
+  if (Array.isArray(it.suppliers) && it.suppliers.length) return it.suppliers;
+  if (typeof it.supplier === 'string' && it.supplier.trim()) return [it.supplier.trim()];
+  return [];
+}
 function renderItemsBySupplier(items){
+  // 1アイテムが複数 supplier を持つ場合、各 supplier のグループに重複表示
   const grouped = {};
   for (const it of items){
-    const sup = (it.supplier || '').trim() || '(仕入れ先未設定)';
-    (grouped[sup] = grouped[sup] || []).push(it);
+    const sups = getItemSuppliers(it);
+    if (sups.length === 0){
+      (grouped['(仕入れ先未設定)'] = grouped['(仕入れ先未設定)'] || []).push(it);
+    } else {
+      for (const sup of sups){
+        (grouped[sup] = grouped[sup] || []).push(it);
+      }
+    }
   }
-  const suppliers = Object.keys(grouped).sort((a,b) => {
-    const aUnset = a === '(仕入れ先未設定)';
-    const bUnset = b === '(仕入れ先未設定)';
-    if (aUnset && !bUnset) return 1;
-    if (!aUnset && bUnset) return -1;
+  // プリセット順 → カスタム → 未設定 の順で並べる
+  const order = (name) => {
+    if (name === '(仕入れ先未設定)') return 999;
+    const idx = SUPPLIER_PRESETS.indexOf(name);
+    if (idx >= 0) return idx;
+    return 100;
+  };
+  const suppliers = Object.keys(grouped).sort((a, b) => {
+    const oa = order(a), ob = order(b);
+    if (oa !== ob) return oa - ob;
     return a.localeCompare(b, 'ja');
   });
   return suppliers.map(sup => {
@@ -362,7 +399,9 @@ function renderItemCard(item){
   const loc = LOCATIONS[item.location] || { label: item.location, icon: '📦' };
   const noteHtml = item.note ? `<div class="item-note">📝 ${escapeHtml(item.note)}</div>` : '';
   const hasUrl = !!(item.url && String(item.url).trim());
-  const linkBtn = hasUrl ? `<a class="item-link-btn" href="${escapeAttr(item.url)}" target="_blank" rel="noopener">🛒 ${escapeHtml(item.supplier || '購入先')}</a>` : '';
+  const supList = getItemSuppliers(item);
+  const supLabel = supList.length ? supList.join(' / ') : '購入先';
+  const linkBtn = hasUrl ? `<a class="item-link-btn" href="${escapeAttr(item.url)}" target="_blank" rel="noopener">🛒 ${escapeHtml(supLabel)}</a>` : '';
   const thr = (item.minStock != null && item.minStock !== '') ? `補充ライン: ${item.minStock}` : '';
   const subtitle = item.category ? escapeHtml(item.category) : '未分類';
   const isOrdered = !!item.ordered;
@@ -403,6 +442,70 @@ function renderItemCard(item){
       </div>
     </div>
   `;
+}
+
+function renderSupplierChips(selected){
+  const wrap = document.getElementById('f-supplier-chips');
+  if (!wrap) return;
+  const all = getAllSuppliers();
+  const sel = new Set(selected || []);
+  // selected の中で all に無いもの (旧データ等) も末尾に表示しておく
+  const extras = (selected || []).filter(s => !all.includes(s));
+  const list = [...all, ...extras];
+  if (list.length === 0){
+    wrap.innerHTML = '<div class="supplier-empty">下の入力欄から仕入れ先を追加してください</div>';
+    return;
+  }
+  wrap.innerHTML = list.map(name => {
+    const active = sel.has(name) ? 'active' : '';
+    const removable = !isPresetSupplier(name);
+    return `<button type="button" class="supplier-chip ${active}" data-supplier="${escapeAttr(name)}" onclick="toggleSupplierChip('${escapeAttr(name)}')">${escapeHtml(name)}${removable ? `<span class="supplier-chip-x" onclick="event.stopPropagation();removeCustomSupplier('${escapeAttr(name)}')">✕</span>` : ''}</button>`;
+  }).join('');
+}
+function toggleSupplierChip(name){
+  const btn = document.querySelector(`#f-supplier-chips .supplier-chip[data-supplier="${name}"]`);
+  if (btn) btn.classList.toggle('active');
+}
+function collectSelectedSuppliers(){
+  return [...document.querySelectorAll('#f-supplier-chips .supplier-chip.active')]
+    .map(b => b.dataset.supplier);
+}
+function addCustomSupplier(){
+  const inp = document.getElementById('f-supplier-new');
+  const name = inp.value.trim();
+  if (!name){ showToast('店名を入力してください'); return; }
+  const all = getAllSuppliers();
+  if (all.includes(name)){ showToast('既に登録済みです'); return; }
+  const custom = loadCustomSuppliers();
+  custom.push(name);
+  saveCustomSuppliers(custom);
+  inp.value = '';
+  // 既存の選択を維持しつつ、新規分を選択状態で追加
+  const selected = collectSelectedSuppliers();
+  selected.push(name);
+  renderSupplierChips(selected);
+  showToast(`「${name}」を仕入れ先に追加`);
+}
+function removeCustomSupplier(name){
+  if (isPresetSupplier(name)) return;
+  if (!confirm(`「${name}」を仕入れ先一覧から削除しますか?\n(既に登録された品目の仕入れ先設定からも外れます)`)) return;
+  const custom = loadCustomSuppliers().filter(s => s !== name);
+  saveCustomSuppliers(custom);
+  // 既存の品目からこの supplier を除外
+  let touched = false;
+  for (const it of STATE.items){
+    if (Array.isArray(it.suppliers) && it.suppliers.includes(name)){
+      it.suppliers = it.suppliers.filter(s => s !== name);
+      it.updatedAt = now();
+      syncItem(it);
+      touched = true;
+    }
+  }
+  if (touched) saveItems();
+  // 選択状態を維持して再描画
+  const selected = collectSelectedSuppliers().filter(s => s !== name);
+  renderSupplierChips(selected);
+  showToast(`「${name}」を削除しました`);
 }
 
 function toggleOrdered(id){
@@ -511,7 +614,8 @@ function openModal({ id } = {}){
   document.getElementById('f-unit').value = item?.unit || '個';
   document.getElementById('f-min').value = item?.minStock ?? '';
   document.getElementById('f-target').value = item?.target ?? '';
-  document.getElementById('f-supplier').value = item?.supplier || '';
+  renderSupplierChips(item?.suppliers || []);
+  document.getElementById('f-supplier-new').value = '';
   document.getElementById('f-url').value = item?.url || '';
   document.getElementById('f-note').value = item?.note || '';
   document.getElementById('f-stock').value = '';
@@ -531,7 +635,7 @@ function submitModal(){
   const unit = document.getElementById('f-unit').value;
   const minStock = document.getElementById('f-min').value;
   const target = document.getElementById('f-target').value;
-  const supplier = document.getElementById('f-supplier').value.trim();
+  const suppliers = collectSelectedSuppliers();
   const url = document.getElementById('f-url').value.trim();
   const note = document.getElementById('f-note').value.trim();
   if (!name){ showToast('商品名を入力してください'); return; }
@@ -544,9 +648,10 @@ function submitModal(){
       name, location, category, unit,
       minStock: minStock === '' ? 0 : Number(minStock),
       target: target === '' ? null : Number(target),
-      supplier, url, note,
+      suppliers, url, note,
       updatedAt: now(),
     });
+    delete item.supplier;
     saveItems();
     syncItem(item);
     addLog('品目編集', name);
@@ -558,7 +663,7 @@ function submitModal(){
       name, location, category, unit,
       minStock: minStock === '' ? 0 : Number(minStock),
       target: target === '' ? null : Number(target),
-      supplier, url, note,
+      suppliers, url, note,
       stock: initial === '' ? 0 : Number(initial),
       createdAt: now(),
       updatedAt: now(),
@@ -655,7 +760,7 @@ function loadTemplates(){
       unit: tmpl.unit || '個',
       minStock: tmpl.minStock ?? 0,
       target: tmpl.target ?? null,
-      supplier: '',
+      suppliers: [],
       url: '',
       note: '',
       stock: 0,

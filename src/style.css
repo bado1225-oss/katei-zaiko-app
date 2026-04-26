@@ -247,6 +247,38 @@ textarea.form-input{resize:vertical;min-height:60px}
   background:#fff;color:#48624c;font-size:11px;font-weight:800;
   border:1px solid var(--line);flex-shrink:0;
 }
+
+/* 品目編集モーダル: 仕入れ先チップ */
+.supplier-chips{
+  display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;
+}
+.supplier-chip{
+  position:relative;padding:6px 10px;border-radius:999px;
+  background:#fff;border:1.5px solid var(--line);
+  color:#7c8074;font-size:12px;font-weight:700;cursor:pointer;
+  display:inline-flex;align-items:center;gap:4px;
+}
+.supplier-chip.active{
+  background:linear-gradient(135deg,var(--navy),var(--navy-2));
+  color:#fff;border-color:transparent;
+}
+.supplier-chip-x{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:16px;height:16px;border-radius:999px;
+  background:rgba(0,0,0,.08);color:inherit;
+  font-size:9px;font-weight:800;margin-left:2px;
+}
+.supplier-chip.active .supplier-chip-x{background:rgba(255,255,255,.3)}
+.supplier-empty{font-size:11px;color:var(--muted);padding:4px 0}
+.supplier-add-row{display:flex;gap:6px}
+.supplier-add-row .form-input{flex:1}
+.supplier-add-btn{
+  padding:8px 14px;border-radius:12px;
+  background:#fff;border:1.5px solid var(--line);
+  color:var(--navy);font-size:12px;font-weight:800;cursor:pointer;
+  white-space:nowrap;flex-shrink:0;
+}
+.supplier-add-btn:active{transform:scale(.98)}
 .item-row2{display:flex;align-items:center;gap:10px}
 .qty-display{
   flex:1;
