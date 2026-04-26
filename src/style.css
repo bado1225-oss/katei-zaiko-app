@@ -290,9 +290,10 @@ textarea.form-input{resize:vertical;min-height:60px}
 }
 .settings-btn:active{transform:scale(.98)}
 .cloud-status{
-  padding:8px 12px;border-radius:10px;
+  padding:10px 12px;border-radius:10px;
   background:#f4f7f1;color:#7c8074;
   font-size:12px;font-weight:700;margin-bottom:12px;
+  white-space:pre-line;line-height:1.5;
 }
 .cloud-status.connected{
   background:#dcecdf;color:#2f6048;

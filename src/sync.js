@@ -27,7 +27,8 @@ const logsCol  = collection(db, 'households', HOUSEHOLD, 'logs');
 let currentUser = null;
 let unsubItems = null;
 let unsubLogs = null;
-let suppressBroadcast = false;
+let firstItemsSnapshot = true;
+let lastSyncedAt = null;
 
 function fire(name, detail){
   window.dispatchEvent(new CustomEvent(name, { detail }));
@@ -39,12 +40,22 @@ onAuthStateChanged(auth, async (user) => {
 
   if (unsubItems){ unsubItems(); unsubItems = null; }
   if (unsubLogs){  unsubLogs();  unsubLogs  = null; }
+  firstItemsSnapshot = true;
 
   if (!user) return;
 
   unsubItems = onSnapshot(itemsCol, (snap) => {
     const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    fire('katei-items-change', { items });
+    lastSyncedAt = new Date().toISOString();
+    // 初回スナップショットで Firestore 側が空なら、ローカル吹き飛びを防ぐため
+    // 'items-change' は発火させず、'firestore-empty' を発火 (main.js が自動push判断)
+    if (firstItemsSnapshot && items.length === 0){
+      firstItemsSnapshot = false;
+      fire('katei-firestore-empty', {});
+      return;
+    }
+    firstItemsSnapshot = false;
+    fire('katei-items-change', { items, syncedAt: lastSyncedAt });
   }, err => fire('katei-sync-error', { kind: 'items', message: err.message }));
 
   unsubLogs = onSnapshot(
@@ -74,6 +85,14 @@ function stripUndef(o){
 window.kateiSync = {
   isConnected: () => !!currentUser,
   getUser: () => currentUser,
+  getLastSyncedAt: () => lastSyncedAt,
+  fetchAllOnce: async () => {
+    const [a, b] = await Promise.all([getDocs(itemsCol), getDocs(query(logsCol, orderBy('at','desc'), limit(200)))]);
+    return {
+      items: a.docs.map(d => ({ id: d.id, ...d.data() })),
+      logs:  b.docs.map(d => ({ id: d.id, ...d.data() })),
+    };
+  },
   signIn: (email, password) => signInWithEmailAndPassword(auth, email, password),
   signOut: () => signOut(auth),
   upsertItem: async (item) => {

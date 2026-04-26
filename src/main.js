@@ -38,6 +38,7 @@ const STATE = {
   editingId: null,
   qtyEditingId: null,
   cloudUser: null,            // Firebase auth user (null=未ログイン)
+  lastSyncedAt: null,         // 最終 onSnapshot 時刻 (ISO)
 };
 
 /* ---------- storage ---------- */
@@ -614,7 +615,8 @@ function renderCloudUI(){
   const loggedIn = document.getElementById('cloud-logged-in');
   if (!status || !form || !loggedIn) return;
   if (STATE.cloudUser){
-    status.textContent = `✅ ログイン中: ${STATE.cloudUser.email}`;
+    const synced = STATE.lastSyncedAt ? `\n最終同期: ${fmtDate(STATE.lastSyncedAt)}` : '';
+    status.textContent = `✅ ログイン中: ${STATE.cloudUser.email}\n品目 ${STATE.items.length}件 / 履歴 ${STATE.logs.length}件${synced}`;
     status.classList.add('connected');
     form.style.display = 'none';
     loggedIn.style.display = '';
@@ -624,6 +626,23 @@ function renderCloudUI(){
     form.style.display = '';
     loggedIn.style.display = 'none';
   }
+}
+function cloudPullAll(){
+  if (!window.kateiSync || !STATE.cloudUser){ showToast('ログインしてください'); return; }
+  if (!confirm('クラウドのデータをこの端末に取り込み、ローカルデータを上書きします。よろしいですか?')) return;
+  window.kateiSync.fetchAllOnce()
+    .then(({ items, logs }) => {
+      STATE.items = items;
+      STATE.logs = logs;
+      saveItems(); saveLogs();
+      STATE.lastSyncedAt = new Date().toISOString();
+      renderKpis();
+      renderCloudUI();
+      if (STATE.currentTab === 'loc') renderLoc();
+      else if (STATE.currentTab === 'log') renderLog();
+      showToast(`${items.length}件 取り込みました`);
+    })
+    .catch(err => showToast('取り込み失敗: ' + err.message));
 }
 function cloudSignIn(){
   const email = document.getElementById('cloud-email').value.trim();
@@ -652,8 +671,10 @@ function setupCloudListeners(){
   });
   window.addEventListener('katei-items-change', e => {
     STATE.items = e.detail.items;
+    STATE.lastSyncedAt = e.detail.syncedAt || new Date().toISOString();
     saveItems();
     renderKpis();
+    renderCloudUI();
     if (STATE.currentTab === 'loc') renderLoc();
     else if (STATE.currentTab === 'status') renderStatus();
   });
@@ -665,6 +686,18 @@ function setupCloudListeners(){
   window.addEventListener('katei-sync-error', e => {
     showToast(`同期エラー(${e.detail.kind}): ${e.detail.message}`);
   });
+  // ログイン直後にクラウドが空かつローカルにデータがある場合、ローカルが消えないようpush提案
+  window.addEventListener('katei-firestore-empty', () => {
+    if (STATE.items.length === 0 && STATE.logs.length === 0) return;
+    const ok = confirm(
+      `クラウドにはまだデータがありません。\nこの端末の品目 ${STATE.items.length} 件 / 履歴 ${STATE.logs.length} 件 をクラウドにアップロードしますか?\n\n「いいえ」を押すとローカルデータはそのまま、クラウドは空のままになります。`
+    );
+    if (ok && window.kateiSync){
+      window.kateiSync.pushAll({ items: STATE.items, logs: STATE.logs })
+        .then(() => showToast(`${STATE.items.length}件をアップロードしました`))
+        .catch(err => showToast('アップロード失敗: ' + err.message));
+    }
+  });
 }
 
 /* ---------- init ---------- */
@@ -675,9 +708,16 @@ function init(){
   showTab('loc');
   renderLoc();
   renderCloudUI();
-  // Service Worker
+  // Service Worker - 古いコードに張り付かないよう、更新検知時に即リロード
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then(reg => reg.update()).catch(()=>{});
+    let reloadingForSW = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloadingForSW) return;
+      reloadingForSW = true;
+      window.location.reload();
+    });
   }
 }
 document.addEventListener('DOMContentLoaded', init);

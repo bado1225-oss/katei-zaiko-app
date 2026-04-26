@@ -1,5 +1,5 @@
 // Service Worker - 静的ファイルのみキャッシュ。APIなし(localStorage運用)
-const CACHE_NAME = 'katei-zaiko-v20260426a';
+const CACHE_NAME = 'katei-zaiko-v20260426b';
 const ASSETS = [
   './',
   './index.html',
@@ -29,12 +29,34 @@ self.addEventListener('activate', e => {
   })());
 });
 
+function isHtmlRequest(req, url){
+  const accept = req.headers.get('accept') || '';
+  if (accept.includes('text/html')) return true;
+  if (url.pathname.endsWith('.html')) return true;
+  if (url.pathname.endsWith('/')) return true;
+  return false;
+}
+
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  // 同一オリジンの静的ファイルのみ
   if (url.origin !== location.origin) return;
+
+  // HTML はキャッシュせず必ずネットワーク取得 (オフライン時のみキャッシュ)
+  // → 新しいスクリプトタグの ?v=... を即座に拾えるようにする
+  if (isHtmlRequest(req, url)){
+    e.respondWith((async () => {
+      try {
+        return await fetch(req, { cache: 'no-store' });
+      } catch {
+        return (await caches.match(req)) || (await caches.match('./')) || Response.error();
+      }
+    })());
+    return;
+  }
+
+  // 静的アセット (JS/CSS/icons): ネットワークファースト + キャッシュ更新
   e.respondWith((async () => {
     try {
       const fresh = await fetch(req);
