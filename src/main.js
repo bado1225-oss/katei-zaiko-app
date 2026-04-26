@@ -292,23 +292,48 @@ function renderStatus(){
     return;
   }
   if (status === 'order'){
-    // 発注必要を URL有無で分割: 発注リスト(URLあり) / 買い物リスト(URLなし)
+    // 発注必要を URL有無で2セクション、各セクション内で仕入れ先別にサブグループ化
     const hasUrl = it => !!(it.url && String(it.url).trim());
     const orderList = items.filter(hasUrl);
     const shopList  = items.filter(it => !hasUrl(it));
     let html = '';
     if (orderList.length){
       html += `<div class="cat-group-header"><span class="cat-group-title">🌐 発注リスト (URL登録あり)</span><span class="cat-group-count">${orderList.length}件</span></div>`;
-      html += orderList.map(renderItemCard).join('');
+      html += renderItemsBySupplier(orderList);
     }
     if (shopList.length){
       html += `<div class="cat-group-header"><span class="cat-group-title">🛒 買い物リスト (店頭購入)</span><span class="cat-group-count">${shopList.length}件</span></div>`;
-      html += shopList.map(renderItemCard).join('');
+      html += renderItemsBySupplier(shopList);
     }
     list.innerHTML = html;
   } else {
     list.innerHTML = items.map(renderItemCard).join('');
   }
+}
+
+function renderItemsBySupplier(items){
+  const grouped = {};
+  for (const it of items){
+    const sup = (it.supplier || '').trim() || '(仕入れ先未設定)';
+    (grouped[sup] = grouped[sup] || []).push(it);
+  }
+  const suppliers = Object.keys(grouped).sort((a,b) => {
+    const aUnset = a === '(仕入れ先未設定)';
+    const bUnset = b === '(仕入れ先未設定)';
+    if (aUnset && !bUnset) return 1;
+    if (!aUnset && bUnset) return -1;
+    return a.localeCompare(b, 'ja');
+  });
+  return suppliers.map(sup => {
+    const list = grouped[sup];
+    return `
+      <div class="supplier-group-header">
+        <span class="supplier-name">📍 ${escapeHtml(sup)}</span>
+        <span class="supplier-count">${list.length}件</span>
+      </div>
+      ${list.map(renderItemCard).join('')}
+    `;
+  }).join('');
 }
 
 function renderItemsGroupedByCategory(items){
@@ -336,18 +361,28 @@ function renderItemCard(item){
   const s = getStatus(item);
   const loc = LOCATIONS[item.location] || { label: item.location, icon: '📦' };
   const noteHtml = item.note ? `<div class="item-note">📝 ${escapeHtml(item.note)}</div>` : '';
-  const linkBtn = item.url ? `<a class="item-link-btn" href="${escapeAttr(item.url)}" target="_blank" rel="noopener">🛒 ${escapeHtml(item.supplier || '購入先')}</a>` : '';
+  const hasUrl = !!(item.url && String(item.url).trim());
+  const linkBtn = hasUrl ? `<a class="item-link-btn" href="${escapeAttr(item.url)}" target="_blank" rel="noopener">🛒 ${escapeHtml(item.supplier || '購入先')}</a>` : '';
   const thr = (item.minStock != null && item.minStock !== '') ? `補充ライン: ${item.minStock}` : '';
   const subtitle = item.category ? escapeHtml(item.category) : '未分類';
+  const isOrdered = !!item.ordered;
+  // 発注ボタン: 発注リスト(URLあり)で発注必要 もしくは 既に発注済みの場合に表示
+  const showOrderToggle = isOrdered || (s === 'order' && hasUrl);
+  const orderBtn = showOrderToggle
+    ? `<button class="item-edit-btn order-toggle ${isOrdered?'on':''}" onclick="toggleOrdered('${item.id}')">${isOrdered?'✅ 発注済み (取消)':'📤 発注済みにする'}</button>`
+    : '';
+  const statusBadge = isOrdered
+    ? `<span class="item-tag ordered">✅ 発注済み</span>`
+    : `<span class="item-tag ${s}">${statusLabel(s)}</span>`;
   return `
-    <div class="item-card" data-id="${item.id}">
+    <div class="item-card ${isOrdered?'ordered':''}" data-id="${item.id}">
       <div class="item-row1">
         <div class="item-title-wrap">
           <div class="item-name">${escapeHtml(item.name)}</div>
           <div class="item-subtitle">${subtitle}</div>
         </div>
         <div class="item-meta">
-          <span class="item-tag ${s}">${statusLabel(s)}</span>
+          ${statusBadge}
           <span class="item-tag">${loc.icon} ${escapeHtml(loc.label)}</span>
         </div>
       </div>
@@ -362,11 +397,26 @@ function renderItemCard(item){
       </div>
       ${noteHtml}
       <div class="item-actions">
+        ${orderBtn}
         ${linkBtn}
         <button class="item-edit-btn" onclick="openModal({id:'${item.id}'})">編集</button>
       </div>
     </div>
   `;
+}
+
+function toggleOrdered(id){
+  const item = STATE.items.find(i=>i.id===id);
+  if (!item) return;
+  item.ordered = !item.ordered;
+  item.updatedAt = now();
+  saveItems();
+  syncItem(item);
+  addLog(item.ordered ? '発注済みにした' : '発注済み解除', item.name);
+  renderKpis();
+  if (STATE.currentTab === 'loc') renderLoc();
+  else if (STATE.currentTab === 'status') renderStatus();
+  showToast(item.ordered ? '発注済みにしました' : '発注済みを解除しました');
 }
 
 /* ---------- Log ---------- */
@@ -393,6 +443,7 @@ function stepQty(id, delta){
   const after = Math.max(0, before + delta);
   if (before === after) return;
   item.stock = after;
+  if (delta > 0 && item.ordered) item.ordered = false; // 入荷時に発注済みを自動解除
   item.updatedAt = now();
   saveItems();
   syncItem(item);
@@ -432,6 +483,7 @@ function saveQtyModal(){
   const before = Number(item.stock) || 0;
   if (before === v){ closeQtyModal(); return; }
   item.stock = v;
+  if (v > before && item.ordered) item.ordered = false; // 入荷時に発注済みを自動解除
   item.updatedAt = now();
   saveItems();
   syncItem(item);

@@ -227,6 +227,26 @@ textarea.form-input{resize:vertical;min-height:60px}
 .item-tag.refill{background:#fde8d8;color:#a05a13}
 .item-tag.order{background:#fadcdc;color:#993834}
 .item-tag.normal{background:#dcecdf;color:#2f6048}
+.item-tag.ordered{background:#e3eaf6;color:#3a4f73}
+.item-card.ordered{opacity:.85}
+.item-card.ordered .item-name{text-decoration:line-through;text-decoration-color:rgba(58,107,79,.5)}
+.order-toggle{background:#fff8e8;border-color:#e5d6a3;color:#7a5a0d}
+.order-toggle.on{background:#dcecdf;border-color:transparent;color:#2f6048}
+
+.supplier-group-header{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:8px 4px 4px;padding:6px 12px;
+  font-size:12px;font-weight:800;color:var(--navy);
+  background:rgba(58,107,79,.06);
+  border-left:3px solid var(--navy-2);
+  border-radius:0 10px 10px 0;
+}
+.supplier-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.supplier-count{
+  padding:2px 8px;border-radius:999px;
+  background:#fff;color:#48624c;font-size:11px;font-weight:800;
+  border:1px solid var(--line);flex-shrink:0;
+}
 .item-row2{display:flex;align-items:center;gap:10px}
 .qty-display{
   flex:1;
