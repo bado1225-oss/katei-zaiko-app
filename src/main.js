@@ -81,9 +81,22 @@ function fmtToday(){
 function getStatus(item){
   const stock = Number(item.stock) || 0;
   const min = Number(item.minStock) || 0;
-  if (stock <= 0) return 'order';
-  if (stock <= min) return 'refill';
-  return 'normal';
+  if (stock > min) return 'normal';
+  // stock <= min:補充ライン到達
+  const meta = LOCATIONS[item.location];
+  if (!meta) return 'order';
+  // 倉庫の在庫が最低を下回ったら → 発注
+  if (meta.group === 'warehouse') return 'order';
+  // 家の在庫が最低を下回った: 同名の倉庫アイテムを探す
+  const twin = STATE.items.find(i =>
+    i.id !== item.id &&
+    i.name === item.name &&
+    LOCATIONS[i.location] && LOCATIONS[i.location].group === 'warehouse'
+  );
+  // 倉庫に同名品があり、かつ在庫が残っている → 倉庫から補充
+  if (twin && (Number(twin.stock) || 0) > 0) return 'refill';
+  // 倉庫に無い or 倉庫も0 → 発注
+  return 'order';
 }
 function statusLabel(s){ return s === 'order' ? '発注必要' : s === 'refill' ? '補充必要' : '正常'; }
 function showToast(msg){
@@ -276,6 +289,23 @@ function renderStatus(){
   const list = document.getElementById('status-items');
   if (items.length === 0){
     list.innerHTML = `<div class="empty-msg">${statusLabel(status)} の品目はありません</div>`;
+    return;
+  }
+  if (status === 'order'){
+    // 発注必要を URL有無で分割: 発注リスト(URLあり) / 買い物リスト(URLなし)
+    const hasUrl = it => !!(it.url && String(it.url).trim());
+    const orderList = items.filter(hasUrl);
+    const shopList  = items.filter(it => !hasUrl(it));
+    let html = '';
+    if (orderList.length){
+      html += `<div class="cat-group-header"><span class="cat-group-title">🌐 発注リスト (URL登録あり)</span><span class="cat-group-count">${orderList.length}件</span></div>`;
+      html += orderList.map(renderItemCard).join('');
+    }
+    if (shopList.length){
+      html += `<div class="cat-group-header"><span class="cat-group-title">🛒 買い物リスト (店頭購入)</span><span class="cat-group-count">${shopList.length}件</span></div>`;
+      html += shopList.map(renderItemCard).join('');
+    }
+    list.innerHTML = html;
   } else {
     list.innerHTML = items.map(renderItemCard).join('');
   }
