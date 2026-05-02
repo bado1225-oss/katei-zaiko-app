@@ -508,6 +508,37 @@ function removeCustomSupplier(name){
   showToast(`「${name}」を削除しました`);
 }
 
+// 1アイテムの数値・状態だけを DOM 上で書き換える(リスト全体は再描画しない)
+// → +/- ボタン連打中にカードがソート移動して見失う問題の解消
+function updateItemCardInPlace(item){
+  const cards = document.querySelectorAll(`.item-card[data-id="${item.id}"]`);
+  if (cards.length === 0) return;
+  const isOrdered = !!item.ordered;
+  const s = getStatus(item);
+  cards.forEach(card => {
+    const qtyNum = card.querySelector('.qty-num');
+    if (qtyNum) qtyNum.textContent = item.stock ?? 0;
+    card.classList.toggle('ordered', isOrdered);
+    // ステータスバッジ (item-row1 内の最初の .item-tag)
+    const firstTag = card.querySelector('.item-row1 .item-meta .item-tag');
+    if (firstTag){
+      if (isOrdered){
+        firstTag.className = 'item-tag ordered';
+        firstTag.textContent = '✅ 発注済み';
+      } else {
+        firstTag.className = 'item-tag ' + s;
+        firstTag.textContent = statusLabel(s);
+      }
+    }
+    // 発注ボタン (発注リスト内のみ存在)
+    const orderBtn = card.querySelector('.order-toggle');
+    if (orderBtn){
+      orderBtn.classList.toggle('on', isOrdered);
+      orderBtn.textContent = isOrdered ? '✅ 発注済み (取消)' : '📤 発注済みにする';
+    }
+  });
+}
+
 function toggleOrdered(id){
   const item = STATE.items.find(i=>i.id===id);
   if (!item) return;
@@ -517,8 +548,7 @@ function toggleOrdered(id){
   syncItem(item);
   addLog(item.ordered ? '発注済みにした' : '発注済み解除', item.name);
   renderKpis();
-  if (STATE.currentTab === 'loc') renderLoc();
-  else if (STATE.currentTab === 'status') renderStatus();
+  updateItemCardInPlace(item);
   showToast(item.ordered ? '発注済みにしました' : '発注済みを解除しました');
 }
 
@@ -551,9 +581,10 @@ function stepQty(id, delta){
   saveItems();
   syncItem(item);
   addLog(delta > 0 ? '在庫追加' : '在庫消費', item.name, `${before} → ${after} ${item.unit || ''}`);
+  // 全リストの再描画はせず、KPI と該当カードのみ in-place 更新
+  // → 補充ライン跨ぎでカードが消えたり位置が動いたりせず、最後まで入力できる
   renderKpis();
-  if (STATE.currentTab === 'loc') renderLoc();
-  else if (STATE.currentTab === 'status') renderStatus();
+  updateItemCardInPlace(item);
 }
 
 function openQtyModal(id){
