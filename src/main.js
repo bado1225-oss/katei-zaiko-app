@@ -882,19 +882,49 @@ function cloudPushAll(){
     .then(() => showToast('アップロードしました'))
     .catch(err => showToast('失敗: ' + err.message));
 }
+// Firestore からの items 更新を反映する。
+// 構造的変更 (追加/削除/loc・name・category 変更) があれば完全再描画、
+// stock/ordered/minStock 等の軽微変更だけなら in-place 更新で位置維持。
+// → 自分の +/- 連打が onSnapshot で戻ってきてもカードが動かない
+function applyItemsChange(items, syncedAt){
+  const oldMap = new Map(STATE.items.map(i => [i.id, i]));
+  const newMap = new Map(items.map(i => [i.id, i]));
+  let needsFullRender = false;
+  for (const id of oldMap.keys()) if (!newMap.has(id)) { needsFullRender = true; break; }
+  if (!needsFullRender){
+    for (const id of newMap.keys()) if (!oldMap.has(id)) { needsFullRender = true; break; }
+  }
+  if (!needsFullRender){
+    const supKey = arr => Array.isArray(arr) ? arr.slice().sort().join('|') : '';
+    for (const [id, n] of newMap){
+      const o = oldMap.get(id);
+      if (!o) continue;
+      if (o.name !== n.name || o.location !== n.location || o.category !== n.category
+          || o.url !== n.url || supKey(o.suppliers) !== supKey(n.suppliers)){
+        needsFullRender = true; break;
+      }
+    }
+  }
+  STATE.items = items;
+  STATE.lastSyncedAt = syncedAt || new Date().toISOString();
+  saveItems();
+  renderKpis();
+  renderCloudUI();
+  if (needsFullRender){
+    if (STATE.currentTab === 'loc') renderLoc();
+    else if (STATE.currentTab === 'status') renderStatus();
+  } else {
+    for (const item of items) updateItemCardInPlace(item);
+  }
+}
+
 function setupCloudListeners(){
   window.addEventListener('katei-auth-change', e => {
     STATE.cloudUser = e.detail.user;
     renderCloudUI();
   });
   window.addEventListener('katei-items-change', e => {
-    STATE.items = e.detail.items;
-    STATE.lastSyncedAt = e.detail.syncedAt || new Date().toISOString();
-    saveItems();
-    renderKpis();
-    renderCloudUI();
-    if (STATE.currentTab === 'loc') renderLoc();
-    else if (STATE.currentTab === 'status') renderStatus();
+    applyItemsChange(e.detail.items, e.detail.syncedAt);
   });
   window.addEventListener('katei-logs-change', e => {
     STATE.logs = e.detail.logs;
