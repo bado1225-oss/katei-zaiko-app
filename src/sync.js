@@ -5,7 +5,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js';
 import {
   getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot,
-  query, orderBy, limit, getDocs, writeBatch
+  query, orderBy, limit, getDocs, writeBatch, enableIndexedDbPersistence
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -21,6 +21,11 @@ const HOUSEHOLD = 'main';
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+// オフライン書き込みキューを有効化 (電波切れ時の +/- 操作を IndexedDB にキュー、
+// 復帰時に自動送信される)。複数タブや非対応ブラウザでは静かに失敗。
+enableIndexedDbPersistence(db).catch(err => {
+  console.warn('[katei-sync] offline persistence not available:', err?.code || err);
+});
 const itemsCol = collection(db, 'households', HOUSEHOLD, 'items');
 const logsCol  = collection(db, 'households', HOUSEHOLD, 'logs');
 
@@ -98,6 +103,17 @@ window.kateiSync = {
   upsertItem: async (item) => {
     if (!currentUser) return;
     await setDoc(doc(itemsCol, item.id), stripUndef(item));
+  },
+  bulkUpsertItems: async (items) => {
+    if (!currentUser || !items.length) return;
+    // Firestore batch は最大500件。安全のため200件ずつ分割
+    const CHUNK = 200;
+    for (let i = 0; i < items.length; i += CHUNK){
+      const chunk = items.slice(i, i + CHUNK);
+      const batch = writeBatch(db);
+      for (const it of chunk) batch.set(doc(itemsCol, it.id), stripUndef(it));
+      await batch.commit();
+    }
   },
   deleteItem: async (id) => {
     if (!currentUser) return;

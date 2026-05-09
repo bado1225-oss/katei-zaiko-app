@@ -160,10 +160,10 @@ function renderKpis(){
       <div class="kpi-value">${order}</div>
       <div class="kpi-sub">タップで一覧</div>
     </div>
-    <div class="kpi-card good">
+    <div class="kpi-card good" onclick="showStatus('normal')">
       <div class="kpi-label">正常</div>
       <div class="kpi-value">${normal}</div>
-      <div class="kpi-sub">${STATE.items.length}件中</div>
+      <div class="kpi-sub">タップで一覧</div>
     </div>
   `;
   document.getElementById('hero-stamp').textContent = `${fmtToday().split(' ')[0]}`;
@@ -410,6 +410,17 @@ function renderItemCard(item){
   const orderBtn = showOrderToggle
     ? `<button class="item-edit-btn order-toggle ${isOrdered?'on':''}" onclick="toggleOrdered('${item.id}')">${isOrdered?'✅ 発注済み (取消)':'📤 発注済みにする'}</button>`
     : '';
+  // 補充ボタン: 家アイテムで補充必要、かつ同名倉庫アイテムに在庫がある場合
+  const twin = (s === 'refill' && loc.group === 'house')
+    ? STATE.items.find(i =>
+        i.id !== item.id &&
+        i.name === item.name &&
+        LOCATIONS[i.location] && LOCATIONS[i.location].group === 'warehouse' &&
+        (Number(i.stock) || 0) > 0)
+    : null;
+  const refillBtn = twin
+    ? `<button class="item-edit-btn refill-btn" onclick="refillFromWarehouse('${item.id}')">📦 倉庫から補充 (倉庫: ${twin.stock})</button>`
+    : '';
   const statusBadge = isOrdered
     ? `<span class="item-tag ordered">✅ 発注済み</span>`
     : `<span class="item-tag ${s}">${statusLabel(s)}</span>`;
@@ -436,6 +447,7 @@ function renderItemCard(item){
       </div>
       ${noteHtml}
       <div class="item-actions">
+        ${refillBtn}
         ${orderBtn}
         ${linkBtn}
         <button class="item-edit-btn" onclick="openModal({id:'${item.id}'})">編集</button>
@@ -536,7 +548,56 @@ function updateItemCardInPlace(item){
       orderBtn.classList.toggle('on', isOrdered);
       orderBtn.textContent = isOrdered ? '✅ 発注済み (取消)' : '📤 発注済みにする';
     }
+    // 補充ボタン: 倉庫の twin の在庫数を最新値で表示
+    const refillBtnEl = card.querySelector('.refill-btn');
+    const twin = STATE.items.find(i =>
+      i.id !== item.id &&
+      i.name === item.name &&
+      LOCATIONS[i.location] && LOCATIONS[i.location].group === 'warehouse'
+    );
+    const twinStock = twin ? (Number(twin.stock) || 0) : 0;
+    if (refillBtnEl){
+      if (s === 'refill' && LOCATIONS[item.location]?.group === 'house' && twinStock > 0){
+        refillBtnEl.textContent = `📦 倉庫から補充 (倉庫: ${twinStock})`;
+        refillBtnEl.style.display = '';
+      } else {
+        // 補充不要になった or 倉庫が枯渇 → ボタン非表示
+        refillBtnEl.style.display = 'none';
+      }
+    }
   });
+}
+
+// 家アイテムに +1 / 倉庫の同名アイテムに -1 をワンタッチで実行
+function refillFromWarehouse(id){
+  const item = STATE.items.find(i=>i.id===id);
+  if (!item) return;
+  const houseLoc = LOCATIONS[item.location];
+  if (!houseLoc || houseLoc.group !== 'house'){ showToast('家のアイテムのみ補充できます'); return; }
+  const twin = STATE.items.find(i =>
+    i.id !== item.id &&
+    i.name === item.name &&
+    LOCATIONS[i.location] && LOCATIONS[i.location].group === 'warehouse' &&
+    (Number(i.stock) || 0) > 0
+  );
+  if (!twin){ showToast('倉庫に在庫がありません'); return; }
+  const beforeH = Number(item.stock) || 0;
+  const beforeW = Number(twin.stock) || 0;
+  item.stock = beforeH + 1;
+  twin.stock = beforeW - 1;
+  if (item.ordered) item.ordered = false;
+  const t = now();
+  item.updatedAt = t;
+  twin.updatedAt = t;
+  saveItems();
+  syncItem(item);
+  syncItem(twin);
+  addLog('補充', item.name,
+    `${LOCATIONS[twin.location].label}(${beforeW}→${twin.stock}) → ${houseLoc.label}(${beforeH}→${item.stock}) ${item.unit || ''}`);
+  renderKpis();
+  updateItemCardInPlace(item);
+  updateItemCardInPlace(twin);
+  showToast(`${item.name} を1つ補充`);
 }
 
 function toggleOrdered(id){
@@ -736,6 +797,7 @@ function exportJson(){
     exportedAt: now(),
     items: STATE.items,
     logs: STATE.logs,
+    customSuppliers: loadCustomSuppliers(),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -759,6 +821,9 @@ function importJson(e){
       STATE.items = data.items;
       STATE.logs = Array.isArray(data.logs) ? data.logs : [];
       saveItems(); saveLogs();
+      if (Array.isArray(data.customSuppliers)){
+        saveCustomSuppliers(data.customSuppliers);
+      }
       if (STATE.cloudUser && window.kateiSync){
         window.kateiSync.pushAll({ items: STATE.items, logs: STATE.logs }).catch(err => showToast('クラウド反映失敗: ' + err.message));
       }
@@ -782,6 +847,7 @@ function loadTemplates(){
   if (toAdd.length === 0){ showToast('追加できる新しい品目がありません'); return; }
   if (!confirm(`${toAdd.length}件のテンプレート品目を追加します。よろしいですか?`)) return;
   const t = now();
+  const newItems = [];
   for (const tmpl of toAdd){
     const item = {
       id: uid(),
@@ -799,9 +865,14 @@ function loadTemplates(){
       updatedAt: t,
     };
     STATE.items.push(item);
-    syncItem(item);
+    newItems.push(item);
   }
   saveItems();
+  // ログイン中なら 1リクエストでまとめて Firestore へ送信 (個別 setDoc x N回を避ける)
+  if (STATE.cloudUser && window.kateiSync){
+    window.kateiSync.bulkUpsertItems(newItems)
+      .catch(err => showToast('一括同期に失敗: ' + err.message));
+  }
   addLog('テンプレート追加', '', `${toAdd.length}件`);
   renderKpis();
   if (STATE.currentTab === 'loc') renderLoc();

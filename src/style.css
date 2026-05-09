@@ -232,6 +232,11 @@ textarea.form-input{resize:vertical;min-height:60px}
 .item-card.ordered .item-name{text-decoration:line-through;text-decoration-color:rgba(58,107,79,.5)}
 .order-toggle{background:#fff8e8;border-color:#e5d6a3;color:#7a5a0d}
 .order-toggle.on{background:#dcecdf;border-color:transparent;color:#2f6048}
+.refill-btn{
+  background:linear-gradient(135deg,#fde8d8,#f9d5b6);
+  border-color:transparent;color:#7a3d0d;font-weight:800;
+}
+.refill-btn:active{transform:scale(.97)}
 
 .supplier-group-header{
   display:flex;align-items:center;justify-content:space-between;gap:8px;
